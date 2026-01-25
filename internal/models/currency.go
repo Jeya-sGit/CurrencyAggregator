@@ -9,15 +9,16 @@ type RateRequest struct {
 }
 
 type ProviderResult struct {
-	Source string  `json:"source"`
-	Rate   float64 `json:"rate"`
-	Error  error   `json:"error,omitempty"`
+	Source   string  `json:"source"`
+	Rate     float64 `json:"rate"`
+	Duration string  `json:"duration"`
+	Message  string  `json:"error,omitempty"`
 }
 
 type RateResponse struct {
-	Base         string           `json:"base"`
-	Target       string           `json:"target"`
-	Results      []ProviderResult `json:"results"`
-	Timestamp    time.Time        `json:"timestamp"`
-	TotalLatency time.Duration    `json:"total_latency"`
+	Base         string            `json:"base"`
+	Target       string            `json:"target"`
+	Results      []*ProviderResult `json:"results"`
+	Timestamp    time.Time         `json:"timestamp"`
+	TotalLatency string            `json:"total_latency"`
 }
