@@ -7,5 +7,5 @@ import (
 )
 
 type Provider interface {
-	FetchRate(context.Context, models.RateRequest) (models.ProviderResult, error)
+	FetchRate(context.Context, models.RateRequest) (*models.ProviderResult, error)
 }
