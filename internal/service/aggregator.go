@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Jeya-sGit/CurrencyAggregator/internal/models"
@@ -21,16 +22,33 @@ func NewAggregatorService(providers []providers.Provider) *AggregatorService {
 func (s *AggregatorService) GetAggregateRates(ctx context.Context, req models.RateRequest) (*models.RateResponse, error) {
 	start := time.Now()
 
-	resChannel := make(chan models.ProviderResult, len(s.providers))
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	resChannel := make(chan *models.ProviderResult, len(s.providers))
 
 	for _, provider := range s.providers {
 		go func(p providers.Provider) {
-			res, _ := p.FetchRate(ctx, req)
+			fmt.Println(p)
+			pStart := time.Now()
+			res, err := p.FetchRate(ctx, req)
+			pDuration := time.Since(pStart).String()
+
+			if err != nil {
+				resChannel <- &models.ProviderResult{
+					Source:   fmt.Sprintf("%T", p),
+					Message:  err.Error(),
+					Duration: pDuration,
+				}
+				return
+			}
+
+			res.Duration = pDuration
 			resChannel <- res
 		}(provider)
 	}
 
-	var finalResponse []models.ProviderResult
+	var finalResponse []*models.ProviderResult
 	for i := 0; i < len(s.providers); i++ {
 		finalResponse = append(finalResponse, <-resChannel)
 	}
@@ -40,6 +58,6 @@ func (s *AggregatorService) GetAggregateRates(ctx context.Context, req models.Ra
 		Target:       req.TargetCurrency,
 		Results:      finalResponse,
 		Timestamp:    time.Now(),
-		TotalLatency: time.Since(start),
+		TotalLatency: time.Since(start).String(),
 	}, nil
 }
