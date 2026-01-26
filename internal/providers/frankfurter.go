@@ -60,7 +60,7 @@ func (f *FrankfurterProvider) FetchRate(ctx context.Context, req models.RateRequ
 
 	return &models.ProviderResult{
 		Source: "Frankfurter",
-		Rate:   rate,
+		Rate:   rate * req.Amount,
 	}, nil
 
 }
