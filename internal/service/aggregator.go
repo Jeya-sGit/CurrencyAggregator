@@ -61,3 +61,27 @@ func (s *AggregatorService) GetAggregateRates(ctx context.Context, req models.Ra
 		TotalLatency: time.Since(start).String(),
 	}, nil
 }
+
+func (s *AggregatorService) GetMarketData(ctx context.Context, base string) (*models.RateResponse, error) {
+	for _, p := range s.providers {
+
+		if erProvider, ok := p.(*providers.ExchangeRate); ok {
+			req := models.RateRequest{
+				BaseCurrency: base,
+			}
+
+			res, err := erProvider.FetchMarketRate(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+
+			return &models.RateResponse{
+				Base:      base,
+				Results:   []*models.ProviderResult{res},
+				Timestamp: time.Now(),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("exchange rate provider not found for market data")
+}
