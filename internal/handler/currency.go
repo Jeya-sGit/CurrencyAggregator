@@ -19,7 +19,6 @@ func NewCurrencyHandler(s *service.AggregatorService) *CurrencyHandler {
 	}
 }
 
-// Helper to send JSON errors instead of plain text
 func sendJSONError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -64,4 +63,20 @@ func (h *CurrencyHandler) GetRates(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+func (h *CurrencyHandler) GetMarketOverview(w http.ResponseWriter, r *http.Request) {
+	base := r.URL.Query().Get("base")
+	if base == "" {
+		base = "INR"
+	}
+
+	res, err := h.service.GetMarketData(r.Context(), base)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(res)
 }
