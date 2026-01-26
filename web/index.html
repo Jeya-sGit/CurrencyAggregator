@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CurrencyPulse | Restricted Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-[#0f172a] text-slate-200">
+
+<div id="app">
+    <div v-if="currentView === 'welcome'" class="h-screen flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-900 to-slate-900">
+        <h1 class="text-5xl font-black mb-4 text-white tracking-tighter">Currency<span class="text-blue-500">Pulse</span></h1>
+        <p class="text-slate-400 mb-8 max-w-md text-center">Select your base currency to initialize the market dashboard and comparison tools.</p>
+        
+        <div class="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
+            <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">Base Country</label>
+            <select v-model="globalBase" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-lg mb-6 outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="" disabled>Choose Base...</option>
+                <option v-for="c in countries" :value="c.code">{{ c.flag }} {{ c.name }}</option>
+            </select>
+            <button @click="enterDashboard" :disabled="!globalBase" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold transition-all disabled:opacity-50">
+                Initialize System
+            </button>
+        </div>
+    </div>
+
+    <div v-if="currentView === 'dashboard'" class="flex h-screen overflow-hidden">
+        
+        <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-6 border-b border-slate-800 bg-slate-900/50">
+                <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Live Market Rates</p>
+                <h2 class="text-xl font-bold">1 {{ globalBase }}</h2>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-950/30">
+                <div v-if="sidebarLoading" class="flex justify-center p-10">
+                    <i class="fas fa-circle-notch fa-spin text-blue-500 text-2xl"></i>
+                </div>
+                <div v-else v-for="(rate, code) in marketRates" :key="code" class="flex justify-between items-center p-3 bg-slate-800/40 rounded-lg border border-slate-800">
+                    <span class="font-bold text-slate-400">{{ code }}</span>
+                    <span class="font-mono text-blue-400 font-medium">{{ rate.toFixed(4) }}</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-10 overflow-y-auto bg-[#0f172a]">
+            <div class="max-w-3xl mx-auto">
+                <header class="flex justify-between items-center mb-10">
+                    <h2 class="text-3xl font-bold text-white">Compare Providers</h2>
+                    <span class="bg-slate-800 px-3 py-1 rounded-full text-[10px] text-slate-400 font-mono uppercase border border-slate-700">System: Online</span>
+                </header>
+
+                <div class="bg-slate-800/40 p-8 rounded-3xl border border-slate-800 backdrop-blur-sm mb-10 shadow-xl">
+                    <div class="grid grid-cols-3 gap-6">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Amount</label>
+                            <input type="number" v-model="calcAmount" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mt-2 text-xl font-bold outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">From (Base)</label>
+                            <select v-model="globalBase" @change="fetchMarketRatesOnly" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mt-2 text-lg outline-none cursor-pointer">
+                                <option v-for="c in countries" :value="c.code">{{ c.code }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">To (Target)</label>
+                            <select v-model="calcTarget" class="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl mt-2 text-lg outline-none cursor-pointer">
+                                <option v-for="c in countries" :value="c.code">{{ c.code }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button @click="fetchComparisonOnly" :disabled="compareLoading" class="w-full mt-8 bg-white text-slate-950 py-4 rounded-xl font-black text-lg hover:bg-blue-400 hover:text-white transition-all disabled:opacity-50">
+                        <span v-if="!compareLoading">FETCH COMPETITIVE RATES</span>
+                        <i v-else class="fas fa-circle-notch fa-spin"></i>
+                    </button>
+                </div>
+
+                <div v-if="results.length" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="res in results" :key="res.source" class="bg-slate-800/20 p-6 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all group">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="text-xs font-bold text-blue-500 group-hover:text-blue-400 transition-colors">{{ res.source }}</span>
+                            <span v-if="res.duration" class="text-[9px] text-slate-600 font-mono">{{ res.duration }}</span>
+                        </div>
+                        <div v-if="res.rate" class="text-4xl font-mono font-bold text-white">
+                            {{ Number(res.rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        </div>
+                        <div v-else class="text-sm text-red-400 italic">{{ res.message || 'Rate unavailable' }}</div>
+                        <div class="text-[10px] text-slate-500 mt-2 uppercase tracking-widest">{{ calcTarget }} for {{ calcAmount }} {{ globalBase }}</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue
+    createApp({
+        data() {
+            return {
+                currentView: 'welcome',
+                globalBase: '', 
+                calcAmount: 1,
+                calcTarget: 'USD',
+                sidebarLoading: false,
+                compareLoading: false,
+                countries: [
+                    { name: 'India', code: 'INR', flag: '🇮🇳' },
+                    { name: 'United States', code: 'USD', flag: '🇺🇸' },
+                    { name: 'European Union', code: 'EUR', flag: '🇪🇺' },
+                    { name: 'United Kingdom', code: 'GBP', flag: '🇬🇧' },
+                    { name: 'Japan', code: 'JPY', flag: '🇯🇵' },
+                    { name: 'Australia', code: 'AUD', flag: '🇦🇺' }
+                ],
+                marketRates: {},
+                results: []
+            }
+        },
+        methods: {
+            async enterDashboard() {
+                this.currentView = 'dashboard';
+                await this.fetchMarketRatesOnly();
+            },
+            async fetchMarketRatesOnly() {
+                this.sidebarLoading = true;
+                try {
+                    // API Call matched to your new Service logic
+                    const res = await fetch(`http://localhost:8080/market-overview?base=${this.globalBase}`);
+                    const data = await res.json();
+                    
+                    // Path correction based on your RateResponse struct
+                    if (data.results && data.results.length > 0) {
+                        this.marketRates = data.results[0].all_rates || {};
+                    }
+                } catch (e) { 
+                    console.error("Market API error:", e);
+                } finally {
+                    this.sidebarLoading = false;
+                }
+            },
+            async fetchComparisonOnly() {
+                this.compareLoading = true;
+                try {
+                    const res = await fetch(`http://localhost:8080/compare?base=${this.globalBase}&target=${this.calcTarget}&amount=${this.calcAmount}`);
+                    const data = await res.json();
+                    this.results = data.results || [];
+                } catch (e) { 
+                    console.error("Comparison API error:", e);
+                } finally {
+                    this.compareLoading = false;
+                }
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
