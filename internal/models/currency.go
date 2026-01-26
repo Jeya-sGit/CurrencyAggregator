@@ -9,10 +9,11 @@ type RateRequest struct {
 }
 
 type ProviderResult struct {
-	Source   string  `json:"source"`
-	Rate     float64 `json:"rate"`
-	Duration string  `json:"duration"`
-	Message  string  `json:"error,omitempty"`
+	Source   string             `json:"source"`
+	Rate     float64            `json:"rate"`
+	AllRates map[string]float64 `json:"all_rates,omitempty"`
+	Duration string             `json:"duration"`
+	Message  string             `json:"error,omitempty"`
 }
 
 type RateResponse struct {
